@@ -10,9 +10,13 @@
 
   Amount of requests per second.
 
-- -method string (Optional. Default: GET)
+- -method string (Optional. Default: "GET")
 
   HTTP method to use.
+
+- -body string (Optional. Default: "")
+
+  Body to send with the request.
 
 - -http-timeout duration (Optional. Default: 1s)
 

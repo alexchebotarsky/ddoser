@@ -17,20 +17,20 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer cancel()
 
-	url, rate, timeout, err := ReadFlags()
+	flags, err := ReadFlags()
 	if err != nil {
 		log.Fatalf("Error reading flags: %v", err)
 	}
 
-	ddosClient, err := ddos.NewClient(timeout)
+	ddosClient, err := ddos.NewClient(flags.HTTPTimeout)
 	if err != nil {
 		log.Fatalf("Error creating ddos client: %v", err)
 	}
 
-	requestGenerator := NewRequestGenerator(url)
+	requestGenerator := NewRequestGenerator(flags.URL, flags.Method)
 
 	go func() {
-		err = ddosClient.DDoS(ctx, requestGenerator, rate)
+		err = ddosClient.DDoS(ctx, requestGenerator, flags.Rate)
 		if err != nil {
 			log.Printf("Error ddosing: %v", err)
 			cancel()
@@ -43,37 +43,54 @@ func main() {
 }
 
 // TODO: Allow for custom methods, body and headers
-func NewRequestGenerator(url string) ddos.RequestGenerator {
+func NewRequestGenerator(url string, method string) ddos.RequestGenerator {
 	return func(ctx context.Context) (*http.Request, error) {
-		return http.NewRequestWithContext(
+		req, err := http.NewRequestWithContext(
 			ctx,
-			http.MethodGet,
+			method,
 			url,
 			nil,
 		)
+		if err != nil {
+			return nil, fmt.Errorf("error creating new request: %v", err)
+		}
+
+		return req, nil
 	}
 }
 
-func ReadFlags() (string, int, time.Duration, error) {
-	// Required
-	var url string
-	flag.StringVar(&url, "url", "", "Target URL to make requests to.")
+type Flags struct {
+	URL         string
+	Rate        int
+	Method      string
+	HTTPTimeout time.Duration
+}
 
-	var rate int
-	flag.IntVar(&rate, "rate", 0, "Amount of requests per second.")
+func (f *Flags) Validate() error {
+	if f.URL == "" {
+		return fmt.Errorf("missing required url flag")
+	}
+	if f.Rate == 0 {
+		return fmt.Errorf("missing required rate flag")
+	}
 
-	// Optional
-	var httpTimeout time.Duration
-	flag.DurationVar(&httpTimeout, "http-timeout", 1*time.Second, "HTTP client timeout.")
+	return nil
+}
+
+func ReadFlags() (*Flags, error) {
+	var flags Flags
+
+	flag.StringVar(&flags.URL, "url", "", "Target URL to make requests to.")
+	flag.IntVar(&flags.Rate, "rate", 0, "Amount of requests per second.")
+	flag.StringVar(&flags.Method, "method", http.MethodGet, "HTTP method to use.")
+	flag.DurationVar(&flags.HTTPTimeout, "http-timeout", 1*time.Second, "HTTP client timeout.")
 
 	flag.Parse()
 
-	if url == "" {
-		return "", 0, 0, fmt.Errorf("missing required url flag")
-	}
-	if rate == 0 {
-		return "", 0, 0, fmt.Errorf("missing required rate flag")
+	err := flags.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("error: invalid flags: %v", err)
 	}
 
-	return url, rate, httpTimeout, nil
+	return &flags, nil
 }

@@ -10,6 +10,10 @@
 
   Amount of requests per second.
 
+- -method string (Optional. Default: GET)
+
+  HTTP method to use.
+
 - -http-timeout duration (Optional. Default: 1s)
 
   HTTP client timeout.

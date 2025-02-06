@@ -25,7 +25,7 @@ func main() {
 		log.Fatalf("Error reading flags: %v", err)
 	}
 
-	ddosClient, err := ddos.NewClient(flags.HTTPTimeout)
+	ddosClient, err := ddos.NewClient(flags.HTTPTimeout, flags.Retries)
 	if err != nil {
 		log.Fatalf("Error creating ddos client: %v", err)
 	}
@@ -71,6 +71,7 @@ type Flags struct {
 	Method      string
 	Body        string
 	Headers     Headers
+	Retries     int
 	HTTPTimeout time.Duration
 }
 
@@ -93,7 +94,8 @@ func ReadFlags() (*Flags, error) {
 	flag.StringVar(&flags.Method, "method", http.MethodGet, "HTTP method to use.")
 	flag.StringVar(&flags.Body, "body", "", "Body to send with the request.")
 	flag.Var(&flags.Headers, "header", "Header to send with the request.")
-	flag.DurationVar(&flags.HTTPTimeout, "http-timeout", 1*time.Second, "HTTP client timeout.")
+	flag.IntVar(&flags.Retries, "retries", 3, "Retries before giving up.")
+	flag.DurationVar(&flags.HTTPTimeout, "http-timeout", 5*time.Minute, "HTTP client timeout.")
 
 	flag.Parse()
 

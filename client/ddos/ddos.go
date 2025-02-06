@@ -12,9 +12,12 @@ import (
 type Client struct {
 	HTTPClient *http.Client
 	UserAgents []string
+
+	Retries        int
+	retriesCounter int
 }
 
-func NewClient(timeout time.Duration) (*Client, error) {
+func NewClient(timeout time.Duration, retries int) (*Client, error) {
 	var c Client
 
 	c.HTTPClient = &http.Client{
@@ -39,6 +42,8 @@ func NewClient(timeout time.Duration) (*Client, error) {
 		"Mozilla/5.0 (Linux; Android 11; SM-G991B Build/RP1A.200720.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Mobile Safari/537.36",
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/18.17763",
 	}
+	c.Retries = retries
+	c.retriesCounter = 0
 
 	return &c, nil
 }
@@ -53,7 +58,12 @@ func (c *Client) DDoS(ctx context.Context, requestGenerator RequestGenerator, ra
 		case <-ctx.Done():
 			return ctx.Err()
 		case err := <-pingErrc:
-			return err
+			if c.retriesCounter < c.Retries {
+				c.retriesCounter++
+				log.Printf("Retry %d, after error: %v", c.retriesCounter, err)
+			} else {
+				return err
+			}
 		default:
 			req, err := requestGenerator(ctx)
 			if err != nil {
@@ -87,6 +97,9 @@ func (c *Client) ping(errc chan<- error, req *http.Request) {
 		errc <- fmt.Errorf("%s %s => %s", req.Method, req.URL, res.Status)
 		return
 	}
+
+	// Reset retries counter on success
+	c.retriesCounter = 0
 
 	log.Printf("%s %s => %s", req.Method, req.URL, res.Status)
 }

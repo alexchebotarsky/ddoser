@@ -22,7 +22,11 @@
 
   Header to send with the request.
 
-- -http-timeout duration (Optional. Default: 1s)
+- -retries int (Optional. Default: 3)
+
+  Retries before giving up.
+
+- -http-timeout duration (Optional. Default: 5m)
 
   HTTP client timeout.
 
